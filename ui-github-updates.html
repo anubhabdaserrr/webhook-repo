@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8" />
+      <title>Latest Repo Activity</title>
+      <style>
+         body {
+         font-family: system-ui, -apple-system, sans-serif;
+         padding: 24px;
+         }
+         .event {
+         font-size: 16px;
+         line-height: 1.6;
+         }
+         .status {
+         margin-top: 8px;
+         color: #666;
+         font-size: 14px;
+         }
+         .code {
+        background: #f4f4f4;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        }
+      </style>
+   </head>
+   <body>
+      <h3><span style="margin-right: 15px;">🐙</span>Latest Activity in action-repo</h3>
+      <div id="output" class="event">
+         <div id="content">Loading…</div>
+         <div id="status" class="status" style="font-style:italic;"></div>
+      </div>
+      <script>
+         const API_URL = "https://ff0796e63a0c.ngrok-free.app/data-api/";
+         
+         const content = document.getElementById("content");
+         const status = document.getElementById("status");
+         
+         let lastRefreshedAt = null;
+         let secondsTimer = null;
+         
+         function formatUTCExact(timestamp) {
+         const date = new Date(timestamp);
+         
+         const day = date.getUTCDate();
+         const month = date.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+         const year = date.getUTCFullYear();
+         
+         // ordinal suffix
+         const suffix =
+         day % 10 === 1 && day !== 11 ? "st" :
+         day % 10 === 2 && day !== 12 ? "nd" :
+         day % 10 === 3 && day !== 13 ? "rd" : "th";
+         
+         const time = date.toLocaleString("en-US", {
+         timeZone: "UTC",
+         hour: "numeric",
+         minute: "2-digit",
+         hour12: true
+         });
+         
+         return `${day}${suffix} ${month} ${year} - ${time} UTC`;
+         }
+         
+         
+         function updateStatus() {
+           if (!lastRefreshedAt) return;
+         
+           const secondsAgo = Math.floor((Date.now() - lastRefreshedAt) / 1000);
+         
+           status.textContent =
+             secondsAgo === 0
+               ? "Refreshed now."
+               : `Refreshed ${secondsAgo} second${secondsAgo > 1 ? "s" : ""} ago.`;
+         }
+         
+         function fetchLatest() {
+           status.textContent = "Refreshing… Please wait…";
+         
+           fetch(API_URL, {
+             headers: { "ngrok-skip-browser-warning": "1" }
+           })
+             .then(res => {
+               if (!res.ok) throw new Error(`HTTP ${res.status}`);
+               return res.json();
+             })
+             .then(data => {
+               let text = "";
+         
+         if (data.action === "PUSH") {
+         text = `<span class="code">${data.author}</span> pushed to <span class="code">${data.to_branch}</span> on <span class="code">${formatUTCExact(data.timestamp)}</span>`;
+         }
+         
+         if (data.action === "PULL_REQUEST") {
+         text = `<span class="code">${data.author}</span> submitted a pull request from <span class="code">${data.from_branch}</span> to <span class="code">${data.to_branch}</span> on <span class="code">${formatUTCExact(data.timestamp)}</span>`;
+         }
+         
+         if (data.action === "MERGE") {
+         text = `<span class="code">${data.author}</span> merged branch <span class="code">${data.from_branch}</span> to <span class="code">${data.to_branch}</span> on <span class="code">${formatUTCExact(data.timestamp)}</span>`;
+         }
+         
+         
+               content.innerHTML = text;
+               lastRefreshedAt = Date.now();
+         
+               clearInterval(secondsTimer);
+               secondsTimer = setInterval(updateStatus, 1000);
+               updateStatus();
+             })
+             .catch(err => {
+               content.textContent = "Error loading data";
+               status.textContent = "";
+               console.error(err);
+             });
+         }
+         
+         // initial fetch
+         fetchLatest();
+         
+         // refresh every 15 seconds
+         setInterval(fetchLatest, 15000);
+      </script>
+   </body>
+</html>
